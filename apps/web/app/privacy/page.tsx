@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function PrivacyPage() {
-  return <main className="mx-auto max-w-3xl px-6 py-16"><a href="/" className="text-amber-500">IRIS</a><h1 className="mt-8 text-4xl font-bold">Privacy</h1><p className="mt-6 leading-7 text-neutral-400">IRIS uses domain data to produce passive security observations. Personal hygiene checks store a one-way email hash and assessment results; raw email addresses are not stored in that workflow. We do not request passwords, tokens, or access to your systems.</p><p className="mt-4 leading-7 text-neutral-400">Only scan domains you own or are authorised to test. Contact MetaPhoenix Tech for data access or deletion requests.</p></main>
+  return <main className="mx-auto max-w-3xl px-6 py-16"><Link href="/" className="text-amber-500">IRIS</Link><h1 className="mt-8 text-4xl font-bold">Privacy</h1><p className="mt-6 leading-7 text-neutral-400">IRIS uses domain data to produce passive security observations. Personal hygiene checks store a one-way email hash and assessment results; raw email addresses are not stored in that workflow. We do not request passwords, tokens, or access to your systems.</p><p className="mt-4 leading-7 text-neutral-400">Only scan domains you own or are authorised to test. Contact MetaPhoenix Tech for data access or deletion requests.</p></main>
 }
