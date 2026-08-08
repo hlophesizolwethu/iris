@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createSupabaseServiceRoleClient } from '@/lib/supabase-server'
 import { getMfaGuide } from '@/lib/mfa/providerGuides'
 import ScoreBadge from '@/components/ScoreBadge'
 import FindingsList from '@/components/FindingsList'
 import MfaChecklist from '@/components/MfaChecklist'
+import ScanStatus from '@/components/ScanStatus'
 import type { EmailProvider } from '@packages/types'
 
 interface ScanReportPageProps {
@@ -12,7 +13,7 @@ interface ScanReportPageProps {
 
 export default async function ScanReportPage({ params }: ScanReportPageProps) {
   const { id } = await params
-  const supabase = await createSupabaseServerClient()
+  const supabase = createSupabaseServiceRoleClient()
 
   const { data: scan } = await supabase.from('scans').select().eq('id', id).single()
   if (!scan) notFound()
@@ -31,13 +32,15 @@ export default async function ScanReportPage({ params }: ScanReportPageProps) {
   const provider: EmailProvider = scan.mail_provider ?? 'unknown'
   const mfaGuide = getMfaGuide(provider)
 
-  const completedSteps = (mfaProgress ?? []).filter((p) => p.completed).map((p) => p.step_key)
+  const completedSteps = (mfaProgress ?? [])
+    .filter((p: { completed: boolean }) => p.completed)
+    .map((p: { step_key: string }) => p.step_key)
 
   if (scan.status !== 'complete') {
     return (
       <main className="mx-auto max-w-3xl px-6 py-16 text-center">
         <p className="text-neutral-400">
-          {scan.status === 'failed' ? 'This scan failed. Please try again.' : 'Scan in progress\u2026'}
+          {scan.status === 'failed' ? 'This scan failed. Please try again.' : <ScanStatus scanId={scan.id} />}
         </p>
       </main>
     )

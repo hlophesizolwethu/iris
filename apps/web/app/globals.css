@@ -1,3 +1,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --iris-bg: #0b1220;
+  --iris-surface: #111b2d;
+  --iris-border: #263650;
+  --iris-text: #e8eef7;
+  --iris-muted: #93a4bd;
+  --iris-accent: #f4b942;
+  --iris-danger: #f07167;
+}
+
+* { border-color: var(--iris-border); }
+
+html, body { min-height: 100%; }
+
+body {
+  background: var(--iris-bg);
+  color: var(--iris-text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: var(--iris-accent);
+  color: var(--iris-bg);
+}

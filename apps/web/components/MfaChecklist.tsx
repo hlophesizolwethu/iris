@@ -22,12 +22,10 @@ export default function MfaChecklist({ scanId, guide, initiallyCompleted }: MfaC
 
     // IRIS only ever writes a boolean "did the user follow this step" flag —
     // never any account data, never credentials.
-    await supabase
-      .from('mfa_checklist_progress')
-      .upsert(
-        { scan_id: scanId, step_key: stepKey, completed: nowCompleted },
-        { onConflict: 'scan_id,step_key' }
-      )
+    await (supabase.from('mfa_checklist_progress') as any).upsert(
+      { scan_id: scanId, step_key: stepKey, completed: nowCompleted },
+      { onConflict: 'scan_id,step_key' }
+    )
   }
 
   const progress = Math.round((completed.size / guide.steps.length) * 100)
