@@ -4,7 +4,7 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
-    "build": "npm run build --workspace=apps/web",
+    "build": "next build",
     "lint": "npm run lint --workspace=apps/web"
   }
 }
