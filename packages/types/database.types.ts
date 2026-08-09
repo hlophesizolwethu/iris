@@ -31,7 +31,13 @@ export interface Database {
         Row: {
           id: string
           owner_id: string | null
-          domain: string
+          domain: string | null
+          target_type: 'domain' | 'email' | 'phone' | 'social_profile'
+          target_platform: string | null
+          target_fingerprint: string | null
+          access_level: 'quick' | 'extended'
+          remediation_provenance: 'local' | 'groq' | 'unavailable'
+          remediation_guide: Record<string, unknown> | null
           status: 'queued' | 'running' | 'complete' | 'failed'
           risk_score: number | null
           mail_provider: 'google_workspace' | 'microsoft_365' | 'zoho' | 'self_hosted' | 'unknown' | null
@@ -43,7 +49,13 @@ export interface Database {
         Insert: {
           id?: string
           owner_id?: string | null
-          domain: string
+          domain?: string | null
+          target_type?: 'domain' | 'email' | 'phone' | 'social_profile'
+          target_platform?: string | null
+          target_fingerprint?: string | null
+          access_level?: 'quick' | 'extended'
+          remediation_provenance?: 'local' | 'groq' | 'unavailable'
+          remediation_guide?: Record<string, unknown> | null
           status?: 'queued' | 'running' | 'complete' | 'failed'
           requested_by_ip?: string | null
         }
