@@ -28,10 +28,10 @@
         "./*"
       ],
       "@packages/types": [
-        "../../packages/types/index.ts"
+        "./packages/types/index.ts"
       ],
       "@packages/types/*": [
-        "../../packages/types/*"
+        "./packages/types/*"
       ]
     }
   },

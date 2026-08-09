@@ -6,7 +6,51 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    dependencies:
+      '@supabase/ssr':
+        specifier: ^0.5.1
+        version: 0.5.2(@supabase/supabase-js@2.112.2)
+      '@supabase/supabase-js':
+        specifier: ^2.45.4
+        version: 2.112.2
+      next:
+        specifier: ^16.3.0
+        version: 16.3.0(@babel/core@7.29.7)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.10
+        version: 20.19.43
+      '@types/react':
+        specifier: ^18.3.3
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      autoprefixer:
+        specifier: ^10.4.19
+        version: 10.5.4(postcss@8.5.26)
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.5(jiti@1.21.7)
+      eslint-config-next:
+        specifier: ^16.3.0
+        version: 16.3.0(@typescript-eslint/parser@8.66.0(eslint@9.39.5(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.5(jiti@1.21.7))(typescript@5.9.3)
+      postcss:
+        specifier: ^8.4.39
+        version: 8.5.26
+      tailwindcss:
+        specifier: ^3.4.6
+        version: 3.4.19
+      typescript:
+        specifier: ^5.5.3
+        version: 5.9.3
 
   apps/web:
     dependencies:
