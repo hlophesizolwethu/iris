@@ -3,26 +3,29 @@
 @tailwind utilities;
 
 :root {
-  --iris-bg: #0b1220;
-  --iris-surface: #111b2d;
-  --iris-border: #263650;
-  --iris-text: #e8eef7;
-  --iris-muted: #93a4bd;
-  --iris-accent: #f4b942;
-  --iris-danger: #f07167;
+  --iris-ink: #070b16;
+  --iris-navy: #0c1630;
+  --iris-blue: #1687ff;
+  --iris-cyan: #38d9ff;
+  --iris-silver: #b9c8dc;
+  --iris-white: #f7fbff;
+  --iris-muted: #71809a;
+  --iris-line: #dbe6f3;
+  --iris-surface: #ffffff;
 }
 
-* { border-color: var(--iris-border); }
-
+* { border-color: var(--iris-line); }
 html, body { min-height: 100%; }
-
 body {
-  background: var(--iris-bg);
-  color: var(--iris-text);
+  background: var(--iris-white);
+  color: var(--iris-ink);
   font-family: Arial, Helvetica, sans-serif;
 }
+::selection { background: var(--iris-cyan); color: var(--iris-ink); }
 
-::selection {
-  background: var(--iris-accent);
-  color: var(--iris-bg);
+@layer components {
+  .iris-grid { background-image: linear-gradient(rgba(22, 135, 255, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(22, 135, 255, .06) 1px, transparent 1px); background-size: 32px 32px; }
+  .iris-glow { box-shadow: 0 22px 80px rgba(22, 135, 255, .16); }
+  .iris-panel { @apply rounded-3xl border bg-white shadow-[0_18px_60px_rgba(12,22,48,0.08)]; }
+  .iris-kicker { @apply text-xs font-bold uppercase tracking-[0.24em] text-blue-600; }
 }
