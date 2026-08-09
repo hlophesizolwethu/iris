@@ -15,6 +15,32 @@ export interface AuthUser {
   email: string
 }
 
+export type ScanTargetType = 'domain' | 'email' | 'phone' | 'social_profile'
+export type SocialPlatform = 'linkedin' | 'github' | 'x' | 'instagram' | 'facebook' | 'youtube'
+export type RemediationProvenance = 'local' | 'groq' | 'unavailable'
+
+export interface ScanTarget {
+  type: ScanTargetType
+  value: string
+  platform?: SocialPlatform
+}
+
+export interface RemediationStep {
+  id: string
+  title: string
+  instruction: string
+  evidence: string
+  priority: 'now' | 'next' | 'later'
+}
+
+export interface RemediationGuide {
+  provenance: RemediationProvenance
+  title: string
+  summary: string
+  steps: RemediationStep[]
+  limitations: string[]
+}
+
 export interface AuthContextValue {
   user: AuthUser | null
   loading: boolean
