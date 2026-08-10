@@ -18,14 +18,11 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
   const target = normalizeTarget(body?.target ?? { type: 'domain', value: body?.domain })
   if (!target) return NextResponse.json({ error: 'Enter a valid target. Phone numbers must use international format.' }, { status: 400 })
-  const accessLevel = body?.accessLevel === 'extended' ? 'extended' : 'quick'
-  let ownerId: string | null = null
-  if (accessLevel === 'extended') {
-    const userClient = await createSupabaseServerClient()
-    const { data: { user } } = await userClient.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Create an account to unlock extended scans.' }, { status: 401 })
-    ownerId = user.id
-  }
+  const userClient = await createSupabaseServerClient()
+  const { data: { user } } = await userClient.auth.getUser()
+  const accessLevel = user || body?.accessLevel === 'extended' ? 'extended' : 'quick'
+  if (accessLevel === 'extended' && !user) return NextResponse.json({ error: 'Create an account to unlock extended scans.' }, { status: 401 })
+  const ownerId = user?.id ?? null
   const supabase = createSupabaseServiceRoleClient()
   const { data: scan, error: insertError } = await supabase.from('scans').insert({
     owner_id: ownerId,
@@ -46,6 +43,10 @@ export async function POST(request: NextRequest) {
       findings = findingsFromDnsChecks(scan.id, dnsFindings)
       mailProvider = dnsFindings.provider
     }
+    if (target.type !== 'domain') {
+      await supabase.from('scans').update({ status: 'failed', error_code: 'PROVIDER_NOT_CONFIGURED' }).eq('id', scan.id)
+      return NextResponse.json({ error: `No live evidence provider is configured for ${target.type.replace('_', ' ')} scans yet. No result or risk score was generated.` }, { status: 503 })
+    }
     if (findings.length) {
       const { error } = await supabase.from('findings').insert(findings)
       if (error) throw error
@@ -57,8 +58,9 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase.from('scans').update({ status: 'complete', risk_score: total, mail_provider: mailProvider, remediation_provenance: groqGuide ? 'groq' : localGuide ? 'local' : 'unavailable', remediation_guide: guide, completed_at: new Date().toISOString() }).eq('id', scan.id)
     if (updateError) throw updateError
     return NextResponse.json({ scanId: scan.id, riskScore: total }, { status: 201 })
-  } catch {
-    await supabase.from('scans').update({ status: 'failed', error_code: 'SCAN_EXECUTION_FAILED' }).eq('id', scan.id)
-    return NextResponse.json({ error: 'Scan failed, please try again' }, { status: 502 })
+  } catch (error) {
+    const notFound = error instanceof Error && error.name === 'DOMAIN_NOT_FOUND'
+    await supabase.from('scans').update({ status: 'failed', error_code: notFound ? 'DOMAIN_NOT_FOUND' : 'SCAN_EXECUTION_FAILED' }).eq('id', scan.id)
+    return NextResponse.json({ error: notFound ? 'We could not find that domain in DNS. No risk score was generated.' : 'Scan failed, please try again' }, { status: notFound ? 404 : 502 })
   }
 }

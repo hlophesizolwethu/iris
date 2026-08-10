@@ -59,6 +59,9 @@ export type EmailProvider =
   | 'unknown'
 
 export interface DnsFindings {
+  domainExists: boolean
+  resolvedAddresses: string[]
+  https: { reachable: boolean; status: number | null; tls: boolean; headers: string[] }
   provider: EmailProvider
   mxRecords: string[]
   spf: { present: boolean; record: string | null; valid: boolean }
