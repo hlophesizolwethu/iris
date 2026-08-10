@@ -3,6 +3,7 @@ import { createSupabaseServerClient, createSupabaseServiceRoleClient } from '@/l
 import { runDnsChecks } from '@/lib/scanEngine/dnsChecks'
 import { findingsFromDnsChecks, computeRiskScore } from '@/lib/scanEngine/riskScore'
 import { buildLocalRemediation } from '@/lib/scanEngine/remediation'
+import { buildGroqRemediation } from '@/lib/scanEngine/groqRemediation'
 import { fingerprintTarget, normalizeTarget } from '@/lib/scanEngine/targets'
 import { scanRateLimit } from '@/lib/rate-limit'
 
@@ -49,9 +50,11 @@ export async function POST(request: NextRequest) {
       const { error } = await supabase.from('findings').insert(findings)
       if (error) throw error
     }
-    const guide = target.type === 'domain' ? buildLocalRemediation(findings as never) : null
+    const localGuide = buildLocalRemediation(findings as never)
+    const groqGuide = await buildGroqRemediation(findings as never)
+    const guide = groqGuide ?? localGuide
     const total = computeRiskScore(findings as never).total
-    const { error: updateError } = await supabase.from('scans').update({ status: 'complete', risk_score: total, mail_provider: mailProvider, remediation_provenance: guide ? 'local' : 'unavailable', remediation_guide: guide, completed_at: new Date().toISOString() }).eq('id', scan.id)
+    const { error: updateError } = await supabase.from('scans').update({ status: 'complete', risk_score: total, mail_provider: mailProvider, remediation_provenance: groqGuide ? 'groq' : localGuide ? 'local' : 'unavailable', remediation_guide: guide, completed_at: new Date().toISOString() }).eq('id', scan.id)
     if (updateError) throw updateError
     return NextResponse.json({ scanId: scan.id, riskScore: total }, { status: 201 })
   } catch {
