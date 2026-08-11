@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { createSupabaseServiceRoleClient } from '@/lib/supabase-server'
+import { createSupabaseServerClient, createSupabaseServiceRoleClient } from '@/lib/supabase-server'
 import FindingsList from '@/components/FindingsList'
 import ScanStatus from '@/components/ScanStatus'
 import ScoreBadge from '@/components/ScoreBadge'
@@ -8,10 +8,15 @@ import type { RemediationGuide } from '@packages/types'
 
 export default async function ScanReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = createSupabaseServiceRoleClient()
-  const { data: scan } = await supabase.from('scans').select().eq('id', id).single()
+  const serviceSupabase = createSupabaseServiceRoleClient()
+  const { data: scan } = await serviceSupabase.from('scans').select().eq('id', id).single()
   if (!scan) notFound()
-  const { data: findings } = await supabase.from('findings').select().eq('scan_id', id).order('created_at', { ascending: true })
+  if (scan.access_level === 'extended') {
+    const authSupabase = await createSupabaseServerClient()
+    const { data: { user } } = await authSupabase.auth.getUser()
+    if (!user || scan.owner_id !== user.id) notFound()
+  }
+  const { data: findings } = await serviceSupabase.from('findings').select().eq('scan_id', id).order('created_at', { ascending: true })
   if (scan.status !== 'complete') return <main className="min-h-screen bg-[var(--iris-white)] px-6 py-20"><div className="mx-auto max-w-2xl text-center"><Link href="/" className="text-sm font-bold tracking-[0.2em] text-blue-600">IRIS</Link><div className="iris-panel mt-12 p-10"><p className="iris-kicker">Posture scan</p><div className="mt-5 text-slate-600">{scan.status === 'failed' ? 'This scan failed. Please try again.' : <ScanStatus scanId={scan.id} />}</div></div></div></main>
   const guide = scan.remediation_guide as unknown as RemediationGuide | null
   const targetLabel = scan.target_type === 'email' ? 'Email address' : scan.target_type === 'phone' ? 'Phone number' : scan.target_type === 'social_profile' ? `${scan.target_platform ?? 'Social'} profile` : 'Business domain'

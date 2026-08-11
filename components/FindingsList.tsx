@@ -14,7 +14,12 @@ export default function FindingsList({ findings }: { findings: Finding[] }) {
   }
 
   return (
-    <ul className="space-y-3">
+    <div>
+      <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+        <p className="font-semibold">Need help resolving a flagged issue?</p>
+        <p className="mt-1">Contact MetaPhoenix Tech at <a className="font-semibold underline" href="mailto:info@metaphoenixsec.com">info@metaphoenixsec.com</a> or <a className="font-semibold underline" href="tel:+26876648871">+268 76648871</a>.</p>
+      </div>
+      <ul className="space-y-3">
       {findings.map((finding) => (
         <li
           key={finding.id}
@@ -27,6 +32,7 @@ export default function FindingsList({ findings }: { findings: Finding[] }) {
           <p className="mt-1 text-sm text-neutral-400">{finding.description}</p>
         </li>
       ))}
-    </ul>
+      </ul>
+    </div>
   )
 }
