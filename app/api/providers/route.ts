@@ -9,7 +9,7 @@ export async function GET() {
       phone: { status: process.env.ABSTRACT_API_KEY ? 'available' : 'not_configured', source: 'https://www.abstractapi.com/phone-validation-api' },
       email: { status: process.env.Intelligence_x_key ? 'available' : 'not_configured', source: 'https://intelx.io/' },
       bluesky: { status: 'available', source: 'https://docs.bsky.app/' },
-      certificateTransparency: { status: 'available', source: 'https://crt.sh/' },
+      certificateTransparency: { status: 'available', source: 'https://crt.sh/', description: 'Certificate Transparency hostname evidence used in domain scans.' },
       urlscan: { status: process.env.URLSCAN_API_KEY ? 'available' : 'optional_not_configured', source: 'https://urlscan.io/docs/api/' },
       groqRemediation: { status: process.env.AI_GATEWAY_API_KEY ? 'available' : 'local_fallback', source: 'https://vercel.com/docs/ai-gateway' },
     },

@@ -7,6 +7,7 @@ import { buildGroqRemediation } from '@/lib/scanEngine/groqRemediation'
 import { fingerprintTarget, normalizeTarget } from '@/lib/scanEngine/targets'
 import { scanRateLimit } from '@/lib/rate-limit'
 import { runProviderCheck } from '@/lib/scanEngine/providerChecks'
+import { runCertificateTransparencyCheck } from '@/lib/scanEngine/certificateTransparency'
 
 function clientKey(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
@@ -43,8 +44,10 @@ export async function POST(request: NextRequest) {
     if (target.type === 'domain') {
       const dnsFindings = await runDnsChecks(target.value)
       findings = findingsFromDnsChecks(scan.id, dnsFindings)
+      const certificateFindings = await runCertificateTransparencyCheck(target.value, scan.id)
+      findings = [...findings, ...certificateFindings]
       mailProvider = dnsFindings.provider
-      evidence = dnsFindings as unknown as Record<string, unknown>
+      evidence = { ...dnsFindings, certificateTransparency: { source: 'https://crt.sh/', findings: certificateFindings.length } }
     } else {
       const providerResult = await runProviderCheck(target)
       findings = providerResult.findings.map((finding) => ({ ...finding, scan_id: scan.id })) as Awaited<ReturnType<typeof findingsFromDnsChecks>>
@@ -64,7 +67,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ scanId: scan.id, riskScore: total }, { status: 201 })
   } catch (error) {
     const notFound = error instanceof Error && error.name === 'DOMAIN_NOT_FOUND'
-    await supabase.from('scans').update({ status: 'failed', error_code: notFound ? 'DOMAIN_NOT_FOUND' : 'SCAN_EXECUTION_FAILED' }).eq('id', scan.id)
-    return NextResponse.json({ error: notFound ? 'We could not find that domain in DNS. No risk score was generated.' : 'Scan failed, please try again' }, { status: notFound ? 404 : 502 })
+    const providerUnavailable = error instanceof Error && (error.message === 'PROVIDER_NOT_CONFIGURED' || error.message.startsWith('PROVIDER_'))
+    const errorCode = notFound ? 'DOMAIN_NOT_FOUND' : providerUnavailable ? 'PROVIDER_UNAVAILABLE' : 'SCAN_EXECUTION_FAILED'
+    await supabase.from('scans').update({ status: 'failed', error_code: errorCode }).eq('id', scan.id)
+    const message = notFound
+      ? 'We could not find that domain in DNS. No risk score was generated.'
+      : providerUnavailable
+        ? 'This scan could not be verified because its evidence provider is unavailable or not configured. No risk score was generated.'
+        : 'Scan failed, please try again'
+    return NextResponse.json({ error: message }, { status: notFound ? 404 : providerUnavailable ? 503 : 502 })
   }
 }
