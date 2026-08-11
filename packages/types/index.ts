@@ -16,7 +16,7 @@ export interface AuthUser {
 }
 
 export type ScanTargetType = 'domain' | 'email' | 'phone' | 'social_profile'
-export type SocialPlatform = 'linkedin' | 'github' | 'x' | 'instagram' | 'facebook' | 'youtube'
+export type SocialPlatform = 'linkedin' | 'github' | 'x' | 'instagram' | 'facebook' | 'youtube' | 'bluesky' | 'mastodon'
 export type RemediationProvenance = 'local' | 'groq' | 'unavailable'
 
 export interface ScanTarget {

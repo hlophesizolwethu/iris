@@ -6,6 +6,7 @@ import { buildLocalRemediation } from '@/lib/scanEngine/remediation'
 import { buildGroqRemediation } from '@/lib/scanEngine/groqRemediation'
 import { fingerprintTarget, normalizeTarget } from '@/lib/scanEngine/targets'
 import { scanRateLimit } from '@/lib/rate-limit'
+import { runProviderCheck } from '@/lib/scanEngine/providerChecks'
 
 function clientKey(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
@@ -38,14 +39,17 @@ export async function POST(request: NextRequest) {
   try {
     let findings: Awaited<ReturnType<typeof findingsFromDnsChecks>> = []
     let mailProvider = null
+    let evidence: Record<string, unknown> = {}
     if (target.type === 'domain') {
       const dnsFindings = await runDnsChecks(target.value)
       findings = findingsFromDnsChecks(scan.id, dnsFindings)
       mailProvider = dnsFindings.provider
-    }
-    if (target.type !== 'domain') {
-      await supabase.from('scans').update({ status: 'failed', error_code: 'PROVIDER_NOT_CONFIGURED' }).eq('id', scan.id)
-      return NextResponse.json({ error: `No live evidence provider is configured for ${target.type.replace('_', ' ')} scans yet. No result or risk score was generated.` }, { status: 503 })
+      evidence = dnsFindings as unknown as Record<string, unknown>
+    } else {
+      const providerResult = await runProviderCheck(target)
+      findings = providerResult.findings.map((finding) => ({ ...finding, scan_id: scan.id })) as Awaited<ReturnType<typeof findingsFromDnsChecks>>
+      evidence = { provider: providerResult.provider, ...providerResult.evidence }
+      mailProvider = null
     }
     if (findings.length) {
       const { error } = await supabase.from('findings').insert(findings)
