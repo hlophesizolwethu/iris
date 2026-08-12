@@ -19,7 +19,7 @@ export function normalizeTarget(input: unknown): ScanTarget | null {
   if (type === 'email') return EMAIL.test(value) ? { type, value: value.toLowerCase() } : null
   if (type === 'phone') return PHONE.test(value.replace(/[\s()-]/g, '')) ? { type, value: value.replace(/[\s()-]/g, '') } : null
   if (!platform || !PLATFORMS.includes(platform) || value.length > 300) return null
-  return /^https:\/\//i.test(value) ? { type, value, platform } : null
+  return { type, value, platform }
 }
 
 export function fingerprintTarget(target: ScanTarget): string {
