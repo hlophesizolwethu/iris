@@ -41,6 +41,7 @@ export interface Database {
           status: 'queued' | 'running' | 'complete' | 'failed'
           risk_score: number | null
           mail_provider: 'google_workspace' | 'microsoft_365' | 'zoho' | 'self_hosted' | 'unknown' | null
+          provider_evidence: Record<string, unknown>
           requested_by_ip: string | null
           created_at: string
           updated_at: string
@@ -58,11 +59,13 @@ export interface Database {
           remediation_guide?: Record<string, unknown> | null
           status?: 'queued' | 'running' | 'complete' | 'failed'
           requested_by_ip?: string | null
+          provider_evidence?: Record<string, unknown>
         }
         Update: {
           status?: 'queued' | 'running' | 'complete' | 'failed'
           risk_score?: number | null
           mail_provider?: 'google_workspace' | 'microsoft_365' | 'zoho' | 'self_hosted' | 'unknown' | null
+          provider_evidence?: Record<string, unknown>
           completed_at?: string | null
         }
       }

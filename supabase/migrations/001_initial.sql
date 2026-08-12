@@ -16,6 +16,7 @@ create table if not exists public.scans (
   status text not null default 'queued' check (status in ('queued','running','complete','failed')),
   risk_score integer check (risk_score between 0 and 100),
   mail_provider text check (mail_provider in ('google_workspace','microsoft_365','zoho','self_hosted','unknown')),
+  provider_evidence jsonb not null default '{}'::jsonb,
   requested_by_ip inet,
   error_code text,
   created_at timestamptz not null default now(),
@@ -61,6 +62,8 @@ create table if not exists public.leads (
   status text not null default 'new' check (status in ('new','contacted','qualified','converted','dismissed')),
   created_at timestamptz not null default now()
 );
+
+alter table public.scans add column if not exists provider_evidence jsonb not null default '{}'::jsonb;
 
 create index if not exists scans_domain_idx on public.scans(domain);
 create index if not exists scans_owner_idx on public.scans(owner_id);
