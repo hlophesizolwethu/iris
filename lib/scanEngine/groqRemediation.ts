@@ -28,7 +28,13 @@ export async function buildGroqRemediation(
       prompt: JSON.stringify({ findings }),
     })
     if (!output) return null
-    return { ...output, provenance: 'groq' }
+    return {
+      provenance: 'groq',
+      title: output.title,
+      summary: output.summary,
+      steps: output.steps,
+      limitations: output.limitations,
+    }
   } catch {
     return null
   }

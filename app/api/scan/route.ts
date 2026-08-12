@@ -22,8 +22,9 @@ export async function POST(request: NextRequest) {
   if (!target) return NextResponse.json({ error: 'Enter a valid target. Phone numbers must use international format.' }, { status: 400 })
   const userClient = await createSupabaseServerClient()
   const { data: { user } } = await userClient.auth.getUser()
-  const accessLevel = user || body?.accessLevel === 'extended' ? 'extended' : 'quick'
-  if (accessLevel === 'extended' && !user) return NextResponse.json({ error: 'Create an account to unlock extended scans.' }, { status: 401 })
+  const requestedExtended = body?.accessLevel === 'extended'
+  const accessLevel = user ? 'extended' : 'quick'
+  if (requestedExtended && !user) return NextResponse.json({ error: 'Your private scan session expired. Sign in again to keep this scan in your workspace.' }, { status: 401 })
   const ownerId = user?.id ?? null
   const supabase = createSupabaseServiceRoleClient()
   const { data: scan, error: insertError } = await supabase.from('scans').insert({
