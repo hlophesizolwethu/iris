@@ -1,3 +1,4 @@
+import dns from 'node:dns/promises'
 import type { FindingInsert, ScanTarget } from '@/packages/types'
 
 export type ProviderCheckResult = { findings: Omit<FindingInsert, 'scan_id'>[]; provider: string; evidence: Record<string, unknown> }
@@ -19,6 +20,22 @@ export async function runPhoneCheck(value: string): Promise<ProviderCheckResult>
 }
 
 export async function runEmailCheck(value: string): Promise<ProviderCheckResult> {
+  const domain = value.split('@')[1]
+  let mxRecords: string[]
+  try {
+    mxRecords = (await dns.resolveMx(domain)).sort((a, b) => a.priority - b.priority).map((record) => record.exchange)
+  } catch {
+    throw new Error('EMAIL_DOMAIN_NOT_DELIVERABLE')
+  }
+  if (mxRecords.length === 0) throw new Error('EMAIL_DOMAIN_NOT_DELIVERABLE')
+  const apiKey = process.env.ABSTRACT_API_KEY
+  if (!apiKey) throw new Error('PROVIDER_NOT_CONFIGURED')
+  const validation = await jsonRequest(`https://emailvalidation.abstractapi.com/v1/?api_key=${encodeURIComponent(apiKey)}&email=${encodeURIComponent(value)}&auto_correct=false`)
+  const deliverability = validation.deliverability as string | undefined
+  const formatValid = (validation.is_valid_format as { value?: boolean } | undefined)?.value === true
+  const mxFound = (validation.is_mx_found as { value?: boolean } | undefined)?.value === true
+  const smtpValid = (validation.is_smtp_valid as { value?: boolean } | undefined)?.value === true
+  if (!formatValid || !mxFound || deliverability === 'UNDELIVERABLE' || (deliverability !== 'DELIVERABLE' && !smtpValid)) throw new Error('EMAIL_NOT_DELIVERABLE')
   const response = await fetch(`https://api.xposedornot.com/v1/check-email/${encodeURIComponent(value)}`, { signal: AbortSignal.timeout(9000), cache: 'no-store' })
   if (response.status === 404) return { provider: 'xposedornot', evidence: { breached: false, source: 'https://xposedornot.com/' }, findings: [] }
   if (!response.ok) throw new Error(`PROVIDER_${response.status}`)
@@ -26,7 +43,7 @@ export async function runEmailCheck(value: string): Promise<ProviderCheckResult>
   const breaches = Array.isArray(data.breaches) ? data.breaches : []
   const count = breaches.length
   const findings: ProviderCheckResult['findings'] = count > 0 ? [{ category: 'credential_leak', severity: 'high', title: 'Email found in known breach data', description: `XposedOrNot reported ${count} breach source(s) for this address. Change reused passwords and review the named breach sources before taking action.`, weight: 35 }] : []
-  return { provider: 'xposedornot', evidence: { breached: count > 0, breachCount: count, source: 'https://xposedornot.com/' }, findings }
+  return { provider: 'xposedornot+abstract_email_validation', evidence: { domainDeliverable: true, mailboxVerified: true, deliverability, formatValid, mxFound, smtpValid, mxRecords, breached: count > 0, breachCount: count, source: 'https://emailvalidation.abstractapi.com/' }, findings }
 }
 
 export async function runGitHubCheck(value: string): Promise<ProviderCheckResult> {

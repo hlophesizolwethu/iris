@@ -68,14 +68,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ scanId: scan.id, riskScore: total }, { status: 201 })
   } catch (error) {
     const notFound = error instanceof Error && error.name === 'DOMAIN_NOT_FOUND'
+    const emailNotDeliverable = error instanceof Error && (error.message === 'EMAIL_DOMAIN_NOT_DELIVERABLE' || error.message === 'EMAIL_NOT_DELIVERABLE')
     const providerUnavailable = error instanceof Error && (error.message === 'PROVIDER_NOT_CONFIGURED' || error.message.startsWith('PROVIDER_'))
-    const errorCode = notFound ? 'DOMAIN_NOT_FOUND' : providerUnavailable ? 'PROVIDER_UNAVAILABLE' : 'SCAN_EXECUTION_FAILED'
+    const errorCode = notFound ? 'DOMAIN_NOT_FOUND' : emailNotDeliverable ? 'EMAIL_DOMAIN_NOT_DELIVERABLE' : providerUnavailable ? 'PROVIDER_UNAVAILABLE' : 'SCAN_EXECUTION_FAILED'
     await supabase.from('scans').update({ status: 'failed', error_code: errorCode }).eq('id', scan.id)
     const message = notFound
       ? 'We could not find that domain in DNS. No risk score was generated.'
-      : providerUnavailable
+      : emailNotDeliverable
+        ? 'This email address could not be verified as deliverable by the mail validation provider. No risk score was generated.'
+        : providerUnavailable
         ? 'This scan could not be verified because its evidence provider is unavailable or not configured. No risk score was generated.'
         : 'Scan failed, please try again'
-    return NextResponse.json({ error: message }, { status: notFound ? 404 : providerUnavailable ? 503 : 502 })
+    return NextResponse.json({ error: message }, { status: notFound || emailNotDeliverable ? 422 : providerUnavailable ? 503 : 502 })
   }
 }
