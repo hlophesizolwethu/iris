@@ -75,6 +75,29 @@ export function findingsFromDnsChecks(scanId: string, dnsFindings: DnsFindings):
     })
   }
 
+  if (!dnsFindings.https.reachable) {
+    findings.push({
+      scan_id: scanId,
+      category: 'ssl_tls',
+      severity: 'high',
+      title: 'HTTPS endpoint could not be verified',
+      description: 'DNS resolves, but IRIS could not establish an HTTPS response within the verification window. This may indicate missing HTTPS, an unavailable origin, or a network policy blocking the check.',
+      weight: SEVERITY_WEIGHT.high,
+    })
+  } else {
+    const missingHeaders = ['strict-transport-security', 'content-security-policy', 'x-content-type-options'].filter((header) => !dnsFindings.https.headers.includes(header))
+    if (missingHeaders.length) {
+      findings.push({
+        scan_id: scanId,
+        category: 'ssl_tls',
+        severity: 'medium',
+        title: 'Important security headers are missing',
+        description: `The verified HTTPS response did not include: ${missingHeaders.join(', ')}. These headers reduce downgrade, injection, and content-sniffing risk, but this result reflects only the response IRIS could inspect.`,
+        weight: SEVERITY_WEIGHT.medium,
+      })
+    }
+  }
+
   if (dnsFindings.provider === 'unknown') {
     findings.push({
       scan_id: scanId,

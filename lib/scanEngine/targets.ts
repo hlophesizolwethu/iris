@@ -4,7 +4,7 @@ import type { ScanTarget, ScanTargetType, SocialPlatform } from '@packages/types
 const DOMAIN = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{1,63})+$/i
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE = /^\+[1-9]\d{7,14}$/
-const PLATFORMS: SocialPlatform[] = ['linkedin', 'github', 'x', 'instagram', 'facebook', 'youtube']
+const PLATFORMS: SocialPlatform[] = ['linkedin', 'github', 'x', 'instagram', 'facebook', 'youtube', 'bluesky', 'mastodon']
 
 export function normalizeTarget(input: unknown): ScanTarget | null {
   if (!input || typeof input !== 'object') return null
@@ -19,7 +19,7 @@ export function normalizeTarget(input: unknown): ScanTarget | null {
   if (type === 'email') return EMAIL.test(value) ? { type, value: value.toLowerCase() } : null
   if (type === 'phone') return PHONE.test(value.replace(/[\s()-]/g, '')) ? { type, value: value.replace(/[\s()-]/g, '') } : null
   if (!platform || !PLATFORMS.includes(platform) || value.length > 300) return null
-  return /^https:\/\//i.test(value) ? { type, value, platform } : null
+  return { type, value, platform }
 }
 
 export function fingerprintTarget(target: ScanTarget): string {

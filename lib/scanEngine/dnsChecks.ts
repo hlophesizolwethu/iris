@@ -21,6 +21,15 @@ function detectProvider(mxRecords: string[]): EmailProvider {
   return 'unknown'
 }
 
+async function getResolvedAddresses(domain: string): Promise<string[]> {
+  const addresses = new Set<string>()
+  await Promise.all([
+    dns.resolve4(domain).then((records) => records.forEach((record) => addresses.add(record))).catch(() => undefined),
+    dns.resolve6(domain).then((records) => records.forEach((record) => addresses.add(record))).catch(() => undefined),
+  ])
+  return [...addresses]
+}
+
 async function getMxRecords(domain: string): Promise<string[]> {
   try {
     const records = await dns.resolveMx(domain)
@@ -71,6 +80,20 @@ async function getDkim(domain: string): Promise<DnsFindings['dkim']> {
   return { present, selectorsChecked: checked }
 }
 
+async function getHttpsEvidence(domain: string): Promise<DnsFindings['https']> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 7000)
+  try {
+    const response = await fetch(`https://${domain}`, { method: 'GET', redirect: 'manual', signal: controller.signal })
+    const required = ['strict-transport-security', 'content-security-policy', 'x-content-type-options']
+    return { reachable: true, status: response.status, tls: true, headers: required.filter((header) => response.headers.has(header)) }
+  } catch {
+    return { reachable: false, status: null, tls: false, headers: [] }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 async function getDmarc(domain: string): Promise<DnsFindings['dmarc']> {
   try {
     const txtRecords = await dns.resolveTxt(`_dmarc.${domain}`)
@@ -91,14 +114,24 @@ async function getDmarc(domain: string): Promise<DnsFindings['dmarc']> {
 }
 
 export async function runDnsChecks(domain: string): Promise<DnsFindings> {
+  const resolvedAddresses = await getResolvedAddresses(domain)
   const mxRecords = await getMxRecords(domain)
-  const [spf, dkim, dmarc] = await Promise.all([
+  if (resolvedAddresses.length === 0 && mxRecords.length === 0) {
+    const error = new Error('DOMAIN_NOT_FOUND')
+    error.name = 'DOMAIN_NOT_FOUND'
+    throw error
+  }
+  const [spf, dkim, dmarc, https] = await Promise.all([
     getSpf(domain),
     getDkim(domain),
     getDmarc(domain),
+    getHttpsEvidence(domain),
   ])
 
   return {
+    domainExists: true,
+    resolvedAddresses,
+    https,
     provider: detectProvider(mxRecords),
     mxRecords,
     spf,

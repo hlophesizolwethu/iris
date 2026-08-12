@@ -16,7 +16,7 @@ export interface AuthUser {
 }
 
 export type ScanTargetType = 'domain' | 'email' | 'phone' | 'social_profile'
-export type SocialPlatform = 'linkedin' | 'github' | 'x' | 'instagram' | 'facebook' | 'youtube'
+export type SocialPlatform = 'linkedin' | 'github' | 'x' | 'instagram' | 'facebook' | 'youtube' | 'bluesky' | 'mastodon'
 export type RemediationProvenance = 'local' | 'groq' | 'unavailable'
 
 export interface ScanTarget {
@@ -59,6 +59,9 @@ export type EmailProvider =
   | 'unknown'
 
 export interface DnsFindings {
+  domainExists: boolean
+  resolvedAddresses: string[]
+  https: { reachable: boolean; status: number | null; tls: boolean; headers: string[] }
   provider: EmailProvider
   mxRecords: string[]
   spf: { present: boolean; record: string | null; valid: boolean }
