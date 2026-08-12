@@ -28,9 +28,15 @@ export async function runEmailCheck(value: string): Promise<ProviderCheckResult>
     throw new Error('EMAIL_DOMAIN_NOT_DELIVERABLE')
   }
   if (mxRecords.length === 0) throw new Error('EMAIL_DOMAIN_NOT_DELIVERABLE')
-  const apiKey = process.env.ABSTRACT_EMAIL_API_KEY ?? process.env.ABSTRACT_API_KEY
-  if (!apiKey) throw new Error('PROVIDER_NOT_CONFIGURED')
-  const validation = await jsonRequest(`https://emailvalidation.abstractapi.com/v1/?api_key=${encodeURIComponent(apiKey)}&email=${encodeURIComponent(value)}&auto_correct=false`)
+  const apiKey = process.env.ABSTRACT_EMAIL_API_KEY
+  if (!apiKey) throw new Error('EMAIL_PROVIDER_NOT_CONFIGURED')
+  let validation: Record<string, unknown>
+  try {
+    validation = await jsonRequest(`https://emailvalidation.abstractapi.com/v1/?api_key=${encodeURIComponent(apiKey)}&email=${encodeURIComponent(value)}&auto_correct=false`)
+  } catch (error) {
+    if (error instanceof Error && error.message === 'PROVIDER_401') throw new Error('EMAIL_PROVIDER_UNAUTHORIZED')
+    throw error
+  }
   const deliverability = validation.deliverability as string | undefined
   const formatValid = (validation.is_valid_format as { value?: boolean } | undefined)?.value === true
   const mxFound = (validation.is_mx_found as { value?: boolean } | undefined)?.value === true

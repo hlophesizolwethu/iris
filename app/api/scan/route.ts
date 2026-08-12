@@ -63,22 +63,32 @@ export async function POST(request: NextRequest) {
     const groqGuide = await buildGroqRemediation(findings as never)
     const guide = groqGuide ?? localGuide
     const total = computeRiskScore(findings as never).total
-    const { error: updateError } = await supabase.from('scans').update({ status: 'complete', risk_score: total, mail_provider: mailProvider, provider_evidence: evidence, remediation_provenance: groqGuide ? 'groq' : localGuide ? 'local' : 'unavailable', remediation_guide: guide, completed_at: new Date().toISOString() }).eq('id', scan.id)
+    const scanUpdate = { status: 'complete', risk_score: total, mail_provider: mailProvider, provider_evidence: evidence, remediation_provenance: groqGuide ? 'groq' : localGuide ? 'local' : 'unavailable', remediation_guide: guide, completed_at: new Date().toISOString() }
+    let { error: updateError } = await supabase.from('scans').update(scanUpdate).eq('id', scan.id)
+    if (updateError?.code === 'PGRST204' || updateError?.message?.includes('provider_evidence')) {
+      const fallback = await supabase.from('scans').update({ status: 'complete', risk_score: total, mail_provider: mailProvider, remediation_provenance: groqGuide ? 'groq' : localGuide ? 'local' : 'unavailable', remediation_guide: guide, completed_at: new Date().toISOString() }).eq('id', scan.id)
+      updateError = fallback.error
+    }
     if (updateError) throw updateError
     return NextResponse.json({ scanId: scan.id, riskScore: total }, { status: 201 })
   } catch (error) {
     const notFound = error instanceof Error && error.name === 'DOMAIN_NOT_FOUND'
     const emailNotDeliverable = error instanceof Error && (error.message === 'EMAIL_DOMAIN_NOT_DELIVERABLE' || error.message === 'EMAIL_NOT_DELIVERABLE')
+    const emailProviderIssue = error instanceof Error && (error.message === 'EMAIL_PROVIDER_NOT_CONFIGURED' || error.message === 'EMAIL_PROVIDER_UNAUTHORIZED')
     const providerUnavailable = error instanceof Error && (error.message === 'PROVIDER_NOT_CONFIGURED' || error.message.startsWith('PROVIDER_'))
-    const errorCode = notFound ? 'DOMAIN_NOT_FOUND' : emailNotDeliverable ? 'EMAIL_DOMAIN_NOT_DELIVERABLE' : providerUnavailable ? 'PROVIDER_UNAVAILABLE' : 'SCAN_EXECUTION_FAILED'
+    const errorCode = notFound ? 'DOMAIN_NOT_FOUND' : emailNotDeliverable ? 'EMAIL_DOMAIN_NOT_DELIVERABLE' : emailProviderIssue ? error.message : providerUnavailable ? 'PROVIDER_UNAVAILABLE' : 'SCAN_EXECUTION_FAILED'
     await supabase.from('scans').update({ status: 'failed', error_code: errorCode }).eq('id', scan.id)
     const message = notFound
       ? 'We could not find that domain in DNS. No risk score was generated.'
       : emailNotDeliverable
         ? 'This email address could not be verified as deliverable by the mail validation provider. No risk score was generated.'
+        : emailProviderIssue
+        ? error instanceof Error && error.message === 'EMAIL_PROVIDER_UNAUTHORIZED'
+          ? 'The configured Abstract email key was rejected (401). Add the email-reputation key as ABSTRACT_EMAIL_API_KEY; do not reuse the phone key. No risk score was generated.'
+          : 'ABSTRACT_EMAIL_API_KEY is not configured for email deliverability checks. No risk score was generated.'
         : providerUnavailable
-        ? 'This scan could not be verified because its evidence provider is unavailable or not configured. No risk score was generated.'
+          ? 'This scan could not be verified because its evidence provider is unavailable or not configured. No risk score was generated.'
         : 'Scan failed, please try again'
-    return NextResponse.json({ error: message }, { status: notFound || emailNotDeliverable ? 422 : providerUnavailable ? 503 : 502 })
+    return NextResponse.json({ error: message }, { status: notFound || emailNotDeliverable ? 422 : emailProviderIssue || providerUnavailable ? 503 : 502 })
   }
 }
