@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (!limit.allowed) return NextResponse.json({ error: 'Too many scan requests. Please try again shortly.' }, { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } })
   const body = await request.json().catch(() => null)
   const target = normalizeTarget(body?.target ?? { type: 'domain', value: body?.domain })
-  if (!target) return NextResponse.json({ error: 'Enter a valid target. Phone numbers must use international format.' }, { status: 400 })
+  if (!target) return NextResponse.json({ error: 'Enter a valid email address, domain, international phone number, or supported social profile. No scan or score was created.' }, { status: 400 })
   const userClient = await createSupabaseServerClient()
   const { data: { user } } = await userClient.auth.getUser()
   const requestedExtended = body?.accessLevel === 'extended'

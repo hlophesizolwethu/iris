@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import type { ScanTarget, ScanTargetType, SocialPlatform } from '@packages/types'
 
 const DOMAIN = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{1,63})+$/i
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL = /^(?=.{6,254}$)(?!.*\.\.)[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i
 const PHONE = /^\+[1-9]\d{7,14}$/
 const PLATFORMS: SocialPlatform[] = ['linkedin', 'github', 'x', 'instagram', 'facebook', 'youtube', 'bluesky', 'mastodon']
 
