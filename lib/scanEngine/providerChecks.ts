@@ -14,17 +14,19 @@ export async function runPhoneCheck(value: string): Promise<ProviderCheckResult>
   const data = await jsonRequest(`https://phoneintelligence.abstractapi.com/v1/?api_key=${encodeURIComponent(apiKey)}&phone=${encodeURIComponent(value)}`)
   const valid = data.valid === true
   const findings: ProviderCheckResult['findings'] = []
-  if (!valid) findings.push({ category: 'credential_leak', severity: 'high', title: 'Phone number failed validation', description: 'Abstract API could not verify this as a valid phone number. This is a provider response, not a breach finding.', weight: 25 })
+  if (!valid) findings.push({ category: 'credential_leak', severity: 'low', title: 'Phone number could not be validated', description: 'Abstract API could not verify this number as valid. This is a data-quality or formatting signal, not evidence of compromise or a breach.', weight: 0 })
   return { provider: 'abstract_phone_validation', evidence: { valid, country: data.country, carrier: data.carrier, type: data.type }, findings }
 }
 
 export async function runEmailCheck(value: string): Promise<ProviderCheckResult> {
-  const key = process.env.Intelligence_x_key
-  if (!key) throw new Error('PROVIDER_NOT_CONFIGURED')
-  const data = await jsonRequest('https://2.intelx.io/intelligent/search', { method: 'POST', headers: { 'x-key': key, 'content-type': 'application/json' }, body: JSON.stringify({ term: value, maxresults: 10, media: 0 }) })
-  const records = Array.isArray(data.records) ? data.records.length : 0
-  const findings: ProviderCheckResult['findings'] = records > 0 ? [{ category: 'credential_leak', severity: 'high', title: 'Email appeared in provider search results', description: `Intelligence X returned ${records} matching record reference(s). Review the provider evidence before taking action; IRIS does not infer the source or validity of those records.`, weight: 35 }] : []
-  return { provider: 'intelligence_x', evidence: { records }, findings }
+  const response = await fetch(`https://api.xposedornot.com/v1/check-email/${encodeURIComponent(value)}`, { signal: AbortSignal.timeout(9000), cache: 'no-store' })
+  if (response.status === 404) return { provider: 'xposedornot', evidence: { breached: false, source: 'https://xposedornot.com/' }, findings: [] }
+  if (!response.ok) throw new Error(`PROVIDER_${response.status}`)
+  const data = await response.json() as { ExposedBreaches?: string[][] }
+  const breaches = Array.isArray(data.ExposedBreaches) ? data.ExposedBreaches : []
+  const count = breaches.length
+  const findings: ProviderCheckResult['findings'] = count > 0 ? [{ category: 'credential_leak', severity: 'high', title: 'Email found in known breach data', description: `XposedOrNot reported ${count} breach source(s) for this address. Change reused passwords and review the named breach sources before taking action.`, weight: 35 }] : []
+  return { provider: 'xposedornot', evidence: { breached: count > 0, breachCount: count, source: 'https://xposedornot.com/' }, findings }
 }
 
 export async function runBlueskyCheck(value: string): Promise<ProviderCheckResult> {
