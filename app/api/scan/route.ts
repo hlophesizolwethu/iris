@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const groqGuide = await buildGroqRemediation(findings as never)
     const guide = groqGuide ?? localGuide
     const total = computeRiskScore(findings as never).total
-    const { error: updateError } = await supabase.from('scans').update({ status: 'complete', risk_score: total, mail_provider: mailProvider, remediation_provenance: groqGuide ? 'groq' : localGuide ? 'local' : 'unavailable', remediation_guide: guide, completed_at: new Date().toISOString() }).eq('id', scan.id)
+    const { error: updateError } = await supabase.from('scans').update({ status: 'complete', risk_score: total, mail_provider: mailProvider, provider_evidence: evidence, remediation_provenance: groqGuide ? 'groq' : localGuide ? 'local' : 'unavailable', remediation_guide: guide, completed_at: new Date().toISOString() }).eq('id', scan.id)
     if (updateError) throw updateError
     return NextResponse.json({ scanId: scan.id, riskScore: total }, { status: 201 })
   } catch (error) {

@@ -6,8 +6,9 @@ export async function GET() {
   return NextResponse.json({
     providers: {
       domain: { status: 'available', source: 'IRIS DNS and HTTPS evidence engine' },
-      phone: { status: process.env.ABSTRACT_API_KEY ? 'available' : 'not_configured', source: 'https://www.abstractapi.com/phone-validation-api' },
+      phone: { status: process.env.ABSTRACT_PHONE_API_KEY || process.env.ABSTRACT_API_KEY ? 'available' : 'not_configured', key: process.env.ABSTRACT_PHONE_API_KEY ? 'ABSTRACT_PHONE_API_KEY' : process.env.ABSTRACT_API_KEY ? 'ABSTRACT_API_KEY (legacy)' : null, source: 'https://www.abstractapi.com/phone-validation-api' },
       email: { status: 'available', source: 'https://xposedornot.com/' },
+      emailValidation: { status: process.env.ABSTRACT_EMAIL_API_KEY || process.env.ABSTRACT_API_KEY ? 'available' : 'not_configured', key: process.env.ABSTRACT_EMAIL_API_KEY ? 'ABSTRACT_EMAIL_API_KEY' : process.env.ABSTRACT_API_KEY ? 'ABSTRACT_API_KEY (legacy)' : null, source: 'https://www.abstractapi.com/email-verification-api' },
       bluesky: { status: 'available', source: 'https://docs.bsky.app/' },
       github: { status: 'public_api_available', source: 'https://docs.github.com/en/rest/users/users' },
       mastodon: { status: 'not_configured', source: 'https://docs.joinmastodon.org/api/' },

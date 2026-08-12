@@ -10,13 +10,13 @@ async function jsonRequest(url: string, init?: RequestInit) {
 }
 
 export async function runPhoneCheck(value: string): Promise<ProviderCheckResult> {
-  const apiKey = process.env.ABSTRACT_API_KEY
+  const apiKey = process.env.ABSTRACT_PHONE_API_KEY ?? process.env.ABSTRACT_API_KEY
   if (!apiKey) throw new Error('PROVIDER_NOT_CONFIGURED')
   const data = await jsonRequest(`https://phoneintelligence.abstractapi.com/v1/?api_key=${encodeURIComponent(apiKey)}&phone=${encodeURIComponent(value)}`)
   const valid = data.valid === true
   const findings: ProviderCheckResult['findings'] = []
   if (!valid) findings.push({ category: 'credential_leak', severity: 'low', title: 'Phone number could not be validated', description: 'Abstract API could not verify this number as valid. This is a data-quality or formatting signal, not evidence of compromise or a breach.', weight: 0 })
-  return { provider: 'abstract_phone_validation', evidence: { valid, country: data.country, carrier: data.carrier, type: data.type }, findings }
+  return { provider: 'abstract_phone_intelligence', evidence: { valid, lineType: data.type, carrier: data.carrier, mcc: data.mcc, mnc: data.mnc, international: data.international_format, national: data.national_format, country: data.country, countryCode: data.country_code, source: 'https://app.abstractapi.com/api/phone-intelligence/test' }, findings }
 }
 
 export async function runEmailCheck(value: string): Promise<ProviderCheckResult> {
@@ -28,7 +28,7 @@ export async function runEmailCheck(value: string): Promise<ProviderCheckResult>
     throw new Error('EMAIL_DOMAIN_NOT_DELIVERABLE')
   }
   if (mxRecords.length === 0) throw new Error('EMAIL_DOMAIN_NOT_DELIVERABLE')
-  const apiKey = process.env.ABSTRACT_API_KEY
+  const apiKey = process.env.ABSTRACT_EMAIL_API_KEY ?? process.env.ABSTRACT_API_KEY
   if (!apiKey) throw new Error('PROVIDER_NOT_CONFIGURED')
   const validation = await jsonRequest(`https://emailvalidation.abstractapi.com/v1/?api_key=${encodeURIComponent(apiKey)}&email=${encodeURIComponent(value)}&auto_correct=false`)
   const deliverability = validation.deliverability as string | undefined
