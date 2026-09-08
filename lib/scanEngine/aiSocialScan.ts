@@ -112,9 +112,18 @@ export async function runAiSocialCheck(target: ScanTarget, scanId: string): Prom
 
   const searchedAt = new Date().toISOString()
   const canonicalTarget = target.value
-  const profile = result.profile.found || result.profile.displayName || result.profile.bio || result.profile.activity || result.profile.audience
-    ? result.profile
-    : { ...result.profile, found: false, confidence: 0 }
+  const profile = {
+    ...result.profile,
+    found: result.profile.found || Boolean(publicPage.title || publicPage.description),
+    displayName: result.profile.displayName || publicPage.title,
+    bio: result.profile.bio || publicPage.description,
+    activity: result.profile.activity || (publicPage.outcome === 'public_metadata' ? 'A public profile page responded with readable metadata.' : null),
+    audience: result.profile.audience || (publicPage.outcome === 'login_wall' ? 'Audience-restricted or sign-in-gated profile.' : null),
+    identitySignals: result.profile.identitySignals.length ? result.profile.identitySignals : [
+      publicPage.outcome === 'public_metadata' ? 'The submitted profile URL returned public page metadata.' : 'No identity signal was verified from accessible public evidence.',
+    ],
+    confidence: result.profile.confidence || (publicPage.title || publicPage.description ? 0.65 : 0),
+  }
   const accessLimitation = publicPage.outcome === 'login_wall' ? 'The public page redirected to a sign-in wall; private or audience-restricted content was not inspected.' : publicPage.outcome === 'blocked' ? 'The public page blocked automated access; no bypass or sign-in was attempted.' : publicPage.outcome === 'not_found' ? 'The submitted public page returned not found.' : publicPage.outcome === 'request_failed' ? 'The submitted public page could not be fetched during this scan.' : 'Only publicly accessible web evidence was reviewed.'
   const limitations = Array.from(new Set([accessLimitation, ...result.limitations]))
   const probeSource = { url: publicPage.finalUrl || canonicalTarget, observation: `Direct page probe: ${publicPage.outcome}${publicPage.title ? `; title: ${publicPage.title}` : ''}${publicPage.description ? `; description: ${publicPage.description}` : ''}.`, observedAt: publicPage.observedAt, confidence: publicPage.outcome === 'public_metadata' ? 0.9 : 0.85 }
