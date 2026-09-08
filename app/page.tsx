@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AuthNav from '@/components/AuthNav'
 import { TypewriterWords } from '@/components/TypewriterWords'
+import { SiteFooter } from '@/components/SiteFooter'
 
 type ScanType = 'domain' | 'email' | 'phone' | 'social_profile'
 type Platform = 'linkedin' | 'github' | 'x' | 'instagram' | 'facebook' | 'youtube'
