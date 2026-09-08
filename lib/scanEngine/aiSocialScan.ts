@@ -37,7 +37,7 @@ const socialResearchSchema = z.object({
 
 type SocialResearch = z.infer<typeof socialResearchSchema>
 
-const MODEL = 'perplexity/sonar'
+const MODELS = ['perplexity/sonar', 'perplexity/sonar-pro'] as const
 
 function findingFor(scanId: string, item: SocialResearch['findings'][number]): FindingInsert {
   const category = item.kind === 'credential_like' ? 'credential_leak' : 'subdomain_exposure'
@@ -48,24 +48,36 @@ function findingFor(scanId: string, item: SocialResearch['findings'][number]): F
 export async function runAiSocialCheck(target: ScanTarget, scanId: string): Promise<ProviderCheckResult> {
   if (target.type !== 'social_profile') throw new Error('PROVIDER_NOT_CONFIGURED')
 
-  let result: SocialResearch
-  try {
-    const response = await generateText({
-      model: gateway(MODEL),
-      output: Output.object({ schema: socialResearchSchema }),
-      maxOutputTokens: 3500,
-      system: 'You are a passive public-web research analyst for an authorized security scan. Use web search to inspect only public pages for the supplied social profile. Never log in, bypass controls, collect credentials, infer sensitive identity, or claim a breach without direct evidence. Treat unknown as unknown. Every claim must cite a source URL and observation timestamp. Return only the requested structured object.',
-      prompt: `Research this public social profile: platform=${target.platform}; profile reference=${target.value}. Identify both profile intelligence and security exposure. Search only public web pages, use bounded research, and do not guess if the profile is not found. A credential-like string means a public token/password/private key pattern; redact its value and never reproduce secrets.`,
-      abortSignal: AbortSignal.timeout(25000),
-    })
-    result = response.output
-  } catch {
-    throw new Error('PROVIDER_AI_UNAVAILABLE')
+  let result: SocialResearch | null = null
+  let usedModel: (typeof MODELS)[number] | null = null
+  let lastError: unknown
+
+  for (const model of MODELS) {
+    try {
+      const response = await generateText({
+        model: gateway(model),
+        output: Output.object({ schema: socialResearchSchema }),
+        maxOutputTokens: 3500,
+        system: 'You are a passive public-web research analyst for an authorized security scan. Use web search to inspect only public pages for the supplied social profile. Never log in, bypass controls, collect credentials, infer sensitive identity, or claim a breach without direct evidence. Treat unknown as unknown. Every claim must cite a source URL and observation timestamp. Return only the requested structured object.',
+        prompt: `Research this public social profile: platform=${target.platform}; profile reference=${target.value}. Identify both profile intelligence and security exposure. Search only public web pages, use bounded research, and do not guess if the profile is not found. A credential-like string means a public token/password/private key pattern; redact its value and never reproduce secrets.`,
+        abortSignal: AbortSignal.timeout(45000),
+      })
+      result = response.output
+      usedModel = model
+      break
+    } catch (error) {
+      lastError = error
+      console.error('[v0] AI social scan model failed', { model, error: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
+  if (!result || !usedModel) {
+    throw new Error(`PROVIDER_AI_UNAVAILABLE:${lastError instanceof Error ? lastError.message : 'unknown'}`)
   }
 
   const findings = result.findings.filter((item) => item.confidence >= 0.6).map((item) => findingFor(scanId, item))
   return {
-    provider: `ai_gateway_${MODEL.replace('/', '_')}`,
+    provider: `ai_gateway_${usedModel.replace('/', '_')}`,
     findings,
     evidence: {
       mode: 'public_web_search',
