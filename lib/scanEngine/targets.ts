@@ -19,6 +19,17 @@ export function normalizeTarget(input: unknown): ScanTarget | null {
   if (type === 'email') return EMAIL.test(value) ? { type, value: value.toLowerCase() } : null
   if (type === 'phone') return PHONE.test(value.replace(/[\s()-]/g, '')) ? { type, value: value.replace(/[\s()-]/g, '') } : null
   if (!platform || !PLATFORMS.includes(platform) || value.length > 300) return null
+  if (platform === 'facebook') {
+    try {
+      const url = new URL(value.startsWith('http') ? value : `https://${value}`)
+      if (!/(^|\.)facebook\.com$/i.test(url.hostname)) return null
+      const profileId = url.searchParams.get('id')
+      const canonical = profileId ? `https://www.facebook.com/profile.php?id=${encodeURIComponent(profileId)}` : `https://www.facebook.com${url.pathname.replace(/\/+$/, '') || '/'}`
+      return { type, value: canonical, platform }
+    } catch {
+      return null
+    }
+  }
   return { type, value, platform }
 }
 

@@ -1,5 +1,6 @@
 import dns from 'node:dns/promises'
 import type { FindingInsert, ScanTarget } from '@/packages/types'
+import { runAiSocialCheck } from './aiSocialScan'
 
 export type ProviderCheckResult = { findings: Omit<FindingInsert, 'scan_id'>[]; provider: string; evidence: Record<string, unknown> }
 
@@ -70,10 +71,9 @@ export async function runBlueskyCheck(value: string): Promise<ProviderCheckResul
   return { provider: 'bluesky_public_api', evidence: { found: true, handle: data.handle, did: data.did, followers: data.followersCount, source: 'https://docs.bsky.app/' }, findings: [] }
 }
 
-export async function runProviderCheck(target: ScanTarget): Promise<ProviderCheckResult> {
+export async function runProviderCheck(target: ScanTarget, scanId = ''): Promise<ProviderCheckResult> {
   if (target.type === 'phone') return runPhoneCheck(target.value)
   if (target.type === 'email') return runEmailCheck(target.value)
-  if (target.type === 'social_profile' && target.platform === 'bluesky') return runBlueskyCheck(target.value)
-  if (target.type === 'social_profile' && target.platform === 'github') return runGitHubCheck(target.value)
+  if (target.type === 'social_profile') return runAiSocialCheck(target, scanId)
   throw new Error('PROVIDER_NOT_CONFIGURED')
 }
