@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react'
 
-export function TypewriterWords({ word }: { word: string }) {
+const words = ['Signal', 'Surface', 'Pattern']
+
+export function TypewriterWords() {
+  const [wordIndex, setWordIndex] = useState(0)
   const [visible, setVisible] = useState(0)
   const [deleting, setDeleting] = useState(false)
+  const word = words[wordIndex]
 
   useEffect(() => {
     const delay = deleting ? 90 : visible === word.length ? 1800 : 145
@@ -14,7 +18,7 @@ export function TypewriterWords({ word }: { word: string }) {
       else if (visible > 0) setVisible((current) => current - 1)
       else {
         setDeleting(false)
-        setDeleting(false)
+        setWordIndex((current) => (current + 1) % words.length)
       }
     }, delay)
     return () => window.clearTimeout(timer)
