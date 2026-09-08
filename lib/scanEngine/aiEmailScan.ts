@@ -24,7 +24,7 @@ export async function runAiEmailResearch(email: string, scanId: string) {
     temperature: 0,
     maxOutputTokens: 2200,
     system: 'You are a defensive public-web breach-intelligence analyst. Search only publicly accessible sources for an authorized email exposure check. You do not have private Have I Been Pwned access. Never log in, buy data, reveal passwords, reproduce secrets, or claim complete breach coverage. Only report a breach when a public source directly names the supplied email or clearly documents the exposure. Every breach must cite its source URL. Treat unknown as unknown.',
-    prompt: `Research publicly available breach disclosures for this authorized email: ${email}. Search exact email matches and reputable public breach reports, security advisories, and indexed disclosure pages. Do not infer a breach from the domain alone. Return structured evidence only. The UI-safe identifier is ${maskedEmail(email)}.`,
+    prompt: `Research publicly available breach disclosures for this authorized email: ${email}. Search exact email matches across reputable public breach reports, security advisories, incident disclosures, paste/index pages, and provider notices. Check the exact address, normalized casing, and masked address only as supporting context. Do not infer a breach from the domain alone, and do not treat generic breach lists as a match. Return structured evidence only, including the sources checked and explicit limitations when nothing is found. The UI-safe identifier is ${maskedEmail(email)}.`,
     abortSignal: AbortSignal.timeout(45000),
   })
   const result = response.output as EmailResearch
