@@ -1,6 +1,7 @@
 import dns from 'node:dns/promises'
 import type { FindingInsert, ScanTarget } from '@/packages/types'
 import { runAiSocialCheck } from './aiSocialScan'
+import { runAiEmailResearch } from './aiEmailScan'
 
 export type ProviderCheckResult = { findings: Omit<FindingInsert, 'scan_id'>[]; provider: string; evidence: Record<string, unknown> }
 
@@ -30,27 +31,35 @@ export async function runEmailCheck(value: string): Promise<ProviderCheckResult>
   }
   if (mxRecords.length === 0) throw new Error('EMAIL_DOMAIN_NOT_DELIVERABLE')
   const apiKey = process.env.ABSTRACT_EMAIL_API_KEY
-  if (!apiKey) throw new Error('EMAIL_PROVIDER_NOT_CONFIGURED')
-  let validation: Record<string, unknown>
-  try {
-    validation = await jsonRequest(`https://emailvalidation.abstractapi.com/v1/?api_key=${encodeURIComponent(apiKey)}&email=${encodeURIComponent(value)}&auto_correct=false`)
-  } catch (error) {
-    if (error instanceof Error && error.message === 'PROVIDER_401') throw new Error('EMAIL_PROVIDER_UNAUTHORIZED')
-    throw error
+  let validation: Record<string, unknown> | null = null
+  let validationStatus = 'not_configured'
+  if (apiKey) {
+    try {
+      validation = await jsonRequest(`https://emailvalidation.abstractapi.com/v1/?api_key=${encodeURIComponent(apiKey)}&email=${encodeURIComponent(value)}&auto_correct=false`)
+      validationStatus = 'verified'
+    } catch (error) {
+      if (error instanceof Error && error.message === 'PROVIDER_401') validationStatus = 'unauthorized'
+      else validationStatus = 'unavailable'
+    }
   }
-  const deliverability = validation.deliverability as string | undefined
-  const formatValid = (validation.is_valid_format as { value?: boolean } | undefined)?.value === true
-  const mxFound = (validation.is_mx_found as { value?: boolean } | undefined)?.value === true
-  const smtpValid = (validation.is_smtp_valid as { value?: boolean } | undefined)?.value === true
-  if (!formatValid || !mxFound || deliverability === 'UNDELIVERABLE' || (deliverability !== 'DELIVERABLE' && !smtpValid)) throw new Error('EMAIL_NOT_DELIVERABLE')
-  const response = await fetch(`https://api.xposedornot.com/v1/check-email/${encodeURIComponent(value)}`, { signal: AbortSignal.timeout(9000), cache: 'no-store' })
-  if (response.status === 404) return { provider: 'xposedornot', evidence: { breached: false, source: 'https://xposedornot.com/' }, findings: [] }
-  if (!response.ok) throw new Error(`PROVIDER_${response.status}`)
-  const data = await response.json() as { breaches?: string[][] }
-  const breaches = Array.isArray(data.breaches) ? data.breaches : []
-  const count = breaches.length
-  const findings: ProviderCheckResult['findings'] = count > 0 ? [{ category: 'credential_leak', severity: 'high', title: 'Email found in known breach data', description: `XposedOrNot reported ${count} breach source(s) for this address. Change reused passwords and review the named breach sources before taking action.`, weight: 35 }] : []
-  return { provider: 'xposedornot+abstract_email_validation', evidence: { domainDeliverable: true, mailboxVerified: true, deliverability, formatValid, mxFound, smtpValid, mxRecords, breached: count > 0, breachCount: count, source: 'https://emailvalidation.abstractapi.com/' }, findings }
+  if (validationStatus === 'unauthorized') throw new Error('EMAIL_PROVIDER_UNAUTHORIZED')
+  const deliverability = validation?.deliverability as string | undefined
+  const formatValid = validation ? (validation.is_valid_format as { value?: boolean } | undefined)?.value === true : true
+  const mxFound = validation ? (validation.is_mx_found as { value?: boolean } | undefined)?.value === true : true
+  const smtpValid = validation ? (validation.is_smtp_valid as { value?: boolean } | undefined)?.value === true : true
+  if (validation && (!formatValid || !mxFound || deliverability === 'UNDELIVERABLE' || (deliverability !== 'DELIVERABLE' && !smtpValid))) throw new Error('EMAIL_NOT_DELIVERABLE')
+  let xposedBreaches: string[][] = []
+  let xposedStatus = 'unavailable'
+  try {
+    const response = await fetch(`https://api.xposedornot.com/v1/check-email/${encodeURIComponent(value)}`, { signal: AbortSignal.timeout(9000), cache: 'no-store' })
+    if (response.status === 404) xposedStatus = 'clean'
+    else if (response.ok) { const data = await response.json() as { breaches?: string[][] }; xposedBreaches = Array.isArray(data.breaches) ? data.breaches : []; xposedStatus = xposedBreaches.length ? 'breached' : 'clean' }
+  } catch { xposedStatus = 'unavailable' }
+  let ai: Awaited<ReturnType<typeof runAiEmailResearch>> | null = null
+  try { ai = await runAiEmailResearch(value, '') } catch (error) { console.error('[v0] AI email research unavailable', error instanceof Error ? error.message : String(error)) }
+  const breachNames = Array.from(new Set([...xposedBreaches.map((item) => item[0]).filter(Boolean), ...((ai?.evidence.breaches as { name: string }[] | undefined) ?? []).map((item) => item.name)]))
+  const findings: ProviderCheckResult['findings'] = breachNames.length ? [{ category: 'credential_leak', severity: 'high', title: 'Email found in breach intelligence', description: `${breachNames.length} breach source(s) were identified across available evidence. Change reused passwords and review the named sources before taking action.`, weight: 35 }] : ai?.findings ?? []
+  return { provider: `xposedornot${ai ? `+${ai.provider}` : ''}`, evidence: { domainDeliverable: true, mailboxVerified: validationStatus === 'verified', validationStatus, deliverability, formatValid, mxFound, smtpValid, mxRecords, xposedStatus, breachNames, ai: ai?.evidence ?? { mode: 'public_web_breach_research', status: 'unavailable', limitations: ['AI public-web research was unavailable for this scan.'] }, breached: breachNames.length > 0, source: 'https://xposedornot.com/' }, findings }
 }
 
 export async function runGitHubCheck(value: string): Promise<ProviderCheckResult> {
