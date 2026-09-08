@@ -92,8 +92,8 @@ export async function POST(request: NextRequest) {
     const notFound = error instanceof Error && error.name === 'DOMAIN_NOT_FOUND'
     const emailNotDeliverable = error instanceof Error && (error.message === 'EMAIL_DOMAIN_NOT_DELIVERABLE' || error.message === 'EMAIL_NOT_DELIVERABLE')
     const emailProviderIssue = error instanceof Error && (error.message === 'EMAIL_PROVIDER_NOT_CONFIGURED' || error.message === 'EMAIL_PROVIDER_UNAUTHORIZED')
-    const providerUnavailable = error instanceof Error && (error.message === 'PROVIDER_NOT_CONFIGURED' || error.message.startsWith('PROVIDER_'))
     const aiUnavailable = error instanceof Error && error.message.startsWith('PROVIDER_AI_UNAVAILABLE')
+    const providerUnavailable = !aiUnavailable && error instanceof Error && (error.message === 'PROVIDER_NOT_CONFIGURED' || error.message.startsWith('PROVIDER_'))
     const errorCode = notFound ? 'DOMAIN_NOT_FOUND' : emailNotDeliverable ? 'EMAIL_DOMAIN_NOT_DELIVERABLE' : emailProviderIssue ? error.message : aiUnavailable ? 'PROVIDER_AI_UNAVAILABLE' : providerUnavailable ? 'PROVIDER_UNAVAILABLE' : 'SCAN_EXECUTION_FAILED'
     await supabase.from('scans').update({ status: 'failed', error_code: errorCode }).eq('id', scan.id)
     const message = notFound

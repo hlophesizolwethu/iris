@@ -57,6 +57,7 @@ export async function runAiSocialCheck(target: ScanTarget, scanId: string): Prom
       const response = await generateText({
         model: gateway(model),
         output: Output.object({ schema: socialResearchSchema }),
+        temperature: 0,
         maxOutputTokens: 3500,
         system: 'You are a passive public-web research analyst for an authorized security scan. Use web search to inspect only public pages for the supplied social profile. Never log in, bypass controls, collect credentials, infer sensitive identity, or claim a breach without direct evidence. Treat unknown as unknown. Every claim must cite a source URL and observation timestamp. Return only the requested structured object.',
         prompt: `Research this public social profile: platform=${target.platform}; profile reference=${target.value}. Identify both profile intelligence and security exposure. Search only public web pages, use bounded research, and do not guess if the profile is not found. A credential-like string means a public token/password/private key pattern; redact its value and never reproduce secrets.`,
