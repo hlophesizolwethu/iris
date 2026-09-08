@@ -76,7 +76,8 @@ export async function POST(request: NextRequest) {
     const emailNotDeliverable = error instanceof Error && (error.message === 'EMAIL_DOMAIN_NOT_DELIVERABLE' || error.message === 'EMAIL_NOT_DELIVERABLE')
     const emailProviderIssue = error instanceof Error && (error.message === 'EMAIL_PROVIDER_NOT_CONFIGURED' || error.message === 'EMAIL_PROVIDER_UNAUTHORIZED')
     const providerUnavailable = error instanceof Error && (error.message === 'PROVIDER_NOT_CONFIGURED' || error.message.startsWith('PROVIDER_'))
-    const errorCode = notFound ? 'DOMAIN_NOT_FOUND' : emailNotDeliverable ? 'EMAIL_DOMAIN_NOT_DELIVERABLE' : emailProviderIssue ? error.message : providerUnavailable ? 'PROVIDER_UNAVAILABLE' : 'SCAN_EXECUTION_FAILED'
+    const aiUnavailable = error instanceof Error && error.message === 'PROVIDER_AI_UNAVAILABLE'
+    const errorCode = notFound ? 'DOMAIN_NOT_FOUND' : emailNotDeliverable ? 'EMAIL_DOMAIN_NOT_DELIVERABLE' : emailProviderIssue ? error.message : aiUnavailable ? 'PROVIDER_AI_UNAVAILABLE' : providerUnavailable ? 'PROVIDER_UNAVAILABLE' : 'SCAN_EXECUTION_FAILED'
     await supabase.from('scans').update({ status: 'failed', error_code: errorCode }).eq('id', scan.id)
     const message = notFound
       ? 'We could not find that domain in DNS. No risk score was generated.'
@@ -86,9 +87,11 @@ export async function POST(request: NextRequest) {
         ? error instanceof Error && error.message === 'EMAIL_PROVIDER_UNAUTHORIZED'
           ? 'The configured Abstract email key was rejected (401). Add the email-reputation key as ABSTRACT_EMAIL_API_KEY; do not reuse the phone key. No risk score was generated.'
           : 'ABSTRACT_EMAIL_API_KEY is not configured for email deliverability checks. No risk score was generated.'
-        : providerUnavailable
-          ? 'This scan could not be verified because its evidence provider is unavailable or not configured. No risk score was generated.'
-        : 'Scan failed, please try again'
-    return NextResponse.json({ error: message }, { status: notFound || emailNotDeliverable ? 422 : emailProviderIssue || providerUnavailable ? 503 : 502 })
+        : aiUnavailable
+          ? 'The AI web-search service is temporarily unavailable. Please try again shortly. No risk score was generated.'
+          : providerUnavailable
+            ? 'This scan could not be verified because its evidence provider is unavailable or not configured. No risk score was generated.'
+            : 'Scan failed, please try again'
+    return NextResponse.json({ error: message }, { status: notFound || emailNotDeliverable ? 422 : emailProviderIssue || providerUnavailable || aiUnavailable ? 503 : 502 })
   }
 }

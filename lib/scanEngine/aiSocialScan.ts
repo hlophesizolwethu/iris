@@ -47,7 +47,6 @@ function findingFor(scanId: string, item: SocialResearch['findings'][number]): F
 
 export async function runAiSocialCheck(target: ScanTarget, scanId: string): Promise<ProviderCheckResult> {
   if (target.type !== 'social_profile') throw new Error('PROVIDER_NOT_CONFIGURED')
-  if (!process.env.AI_GATEWAY_API_KEY && process.env.NODE_ENV === 'production') throw new Error('PROVIDER_NOT_CONFIGURED')
 
   let result: SocialResearch
   try {
