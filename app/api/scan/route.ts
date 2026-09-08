@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       mailProvider = dnsFindings.provider
       evidence = { ...dnsFindings, certificateTransparency: { source: 'https://crt.sh/', findings: certificateFindings.length } }
     } else {
-      const providerResult = await runProviderCheck(target)
+      const providerResult = await runProviderCheck(target, scan.id)
       findings = providerResult.findings.map((finding) => ({ ...finding, scan_id: scan.id })) as Awaited<ReturnType<typeof findingsFromDnsChecks>>
       evidence = { provider: providerResult.provider, ...providerResult.evidence }
       mailProvider = null
