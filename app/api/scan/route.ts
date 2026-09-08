@@ -20,8 +20,16 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
   const target = normalizeTarget(body?.target ?? { type: 'domain', value: body?.domain })
   if (!target) return NextResponse.json({ error: 'Enter a valid email address, domain, international phone number, or supported social profile. No scan or score was created.' }, { status: 400 })
-  const userClient = await createSupabaseServerClient()
-  const { data: { user } } = await userClient.auth.getUser()
+  let user: { id: string } | null = null
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    try {
+      const userClient = await createSupabaseServerClient()
+      const authResult = await userClient.auth.getUser()
+      user = authResult.data.user
+    } catch {
+      user = null
+    }
+  }
   const requestedExtended = body?.accessLevel === 'extended'
   const accessLevel = user ? 'extended' : 'quick'
   if (requestedExtended && !user) return NextResponse.json({ error: 'Your private scan session expired. Sign in again to keep this scan in your workspace.' }, { status: 401 })

@@ -35,9 +35,9 @@ export async function createSupabaseServerClient() {
 // (Route Handlers/Edge Functions that write scan results), never expose to
 // the browser, never import into a Client Component.
 export function createSupabaseServiceRoleClient(): any {
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
-  )
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const apiKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !apiKey) throw new Error('SUPABASE_NOT_CONFIGURED')
+
+  return createClient<Database>(supabaseUrl, apiKey, { auth: { persistSession: false } })
 }

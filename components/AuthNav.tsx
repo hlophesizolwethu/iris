@@ -7,6 +7,8 @@ import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 export default function AuthNav() {
   const [signedIn, setSignedIn] = useState(false)
   useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return
+
     const supabase = createSupabaseBrowserClient()
     supabase.auth.getUser().then(({ data }) => setSignedIn(Boolean(data.user)))
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setSignedIn(Boolean(session?.user)))
