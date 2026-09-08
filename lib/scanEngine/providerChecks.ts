@@ -23,13 +23,14 @@ export async function runPhoneCheck(value: string): Promise<ProviderCheckResult>
 
 export async function runEmailCheck(value: string): Promise<ProviderCheckResult> {
   const domain = value.split('@')[1]
-  let mxRecords: string[]
+  let mxRecords: string[] = []
+  let mxStatus = 'unavailable'
   try {
     mxRecords = (await dns.resolveMx(domain)).sort((a, b) => a.priority - b.priority).map((record) => record.exchange)
+    mxStatus = mxRecords.length ? 'verified' : 'not_found'
   } catch {
-    throw new Error('EMAIL_DOMAIN_NOT_DELIVERABLE')
+    mxStatus = 'unavailable'
   }
-  if (mxRecords.length === 0) throw new Error('EMAIL_DOMAIN_NOT_DELIVERABLE')
   const apiKey = process.env.ABSTRACT_EMAIL_API_KEY
   let validation: Record<string, unknown> | null = null
   let validationStatus = 'not_configured'
@@ -42,12 +43,11 @@ export async function runEmailCheck(value: string): Promise<ProviderCheckResult>
       else validationStatus = 'unavailable'
     }
   }
-  if (validationStatus === 'unauthorized') throw new Error('EMAIL_PROVIDER_UNAUTHORIZED')
   const deliverability = validation?.deliverability as string | undefined
-  const formatValid = validation ? (validation.is_valid_format as { value?: boolean } | undefined)?.value === true : true
-  const mxFound = validation ? (validation.is_mx_found as { value?: boolean } | undefined)?.value === true : true
+  const formatValid = validation ? (validation.is_valid_format as { value?: boolean } | undefined)?.value === true : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+  const mxFound = validation ? (validation.is_mx_found as { value?: boolean } | undefined)?.value === true : mxRecords.length > 0
   const smtpValid = validation ? (validation.is_smtp_valid as { value?: boolean } | undefined)?.value === true : true
-  if (validation && (!formatValid || !mxFound || deliverability === 'UNDELIVERABLE' || (deliverability !== 'DELIVERABLE' && !smtpValid))) throw new Error('EMAIL_NOT_DELIVERABLE')
+  const deliverabilityWarning = validation?.deliverability === 'UNDELIVERABLE' || (validation && !formatValid)
   let xposedBreaches: string[][] = []
   let xposedStatus = 'unavailable'
   try {
@@ -59,7 +59,7 @@ export async function runEmailCheck(value: string): Promise<ProviderCheckResult>
   try { ai = await runAiEmailResearch(value, '') } catch (error) { console.error('[v0] AI email research unavailable', error instanceof Error ? error.message : String(error)) }
   const breachNames = Array.from(new Set([...xposedBreaches.map((item) => item[0]).filter(Boolean), ...((ai?.evidence.breaches as { name: string }[] | undefined) ?? []).map((item) => item.name)]))
   const findings: ProviderCheckResult['findings'] = breachNames.length ? [{ category: 'credential_leak', severity: 'high', title: 'Email found in breach intelligence', description: `${breachNames.length} breach source(s) were identified across available evidence. Change reused passwords and review the named sources before taking action.`, weight: 35 }] : ai?.findings ?? []
-  return { provider: `xposedornot${ai ? `+${ai.provider}` : ''}`, evidence: { domainDeliverable: true, mailboxVerified: validationStatus === 'verified', validationStatus, deliverability, formatValid, mxFound, smtpValid, mxRecords, xposedStatus, breachNames, ai: ai?.evidence ?? { mode: 'public_web_breach_research', status: 'unavailable', limitations: ['AI public-web research was unavailable for this scan.'] }, breached: breachNames.length > 0, source: 'https://xposedornot.com/' }, findings }
+  return { provider: `xposedornot${ai ? `+${ai.provider}` : ''}`, evidence: { domainDeliverable: mxStatus === 'verified', mxStatus, mailboxVerified: validationStatus === 'verified', validationStatus, deliverability, deliverabilityWarning, formatValid, mxFound, smtpValid, mxRecords, xposedStatus, breachNames, ai: ai?.evidence ?? { mode: 'public_web_breach_research', status: 'unavailable', limitations: ['AI public-web research was unavailable for this scan.'] }, breached: breachNames.length > 0, source: 'https://xposedornot.com/' }, findings }
 }
 
 export async function runGitHubCheck(value: string): Promise<ProviderCheckResult> {
