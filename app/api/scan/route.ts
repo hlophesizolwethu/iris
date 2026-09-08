@@ -34,7 +34,13 @@ export async function POST(request: NextRequest) {
   const accessLevel = user ? 'extended' : 'quick'
   if (requestedExtended && !user) return NextResponse.json({ error: 'Your private scan session expired. Sign in again to keep this scan in your workspace.' }, { status: 401 })
   const ownerId = user?.id ?? null
-  const supabase = createSupabaseServiceRoleClient()
+  let supabase: ReturnType<typeof createSupabaseServiceRoleClient>
+  try {
+    supabase = createSupabaseServiceRoleClient()
+  } catch (error) {
+    console.error('[v0] Supabase scan client unavailable', error instanceof Error ? error.message : String(error))
+    return NextResponse.json({ error: 'Scan storage is not configured for this deployment. Verify the Supabase URL, anon key, and server-only service-role key are set for the deployed environment, then redeploy.' }, { status: 503 })
+  }
   const { data: scan, error: insertError } = await supabase.from('scans').insert({
     owner_id: ownerId,
     domain: target.type === 'domain' ? target.value : null,
@@ -45,7 +51,10 @@ export async function POST(request: NextRequest) {
     status: 'running',
     requested_by_ip: key === 'unknown' ? null : key,
   }).select().single()
-  if (insertError || !scan) return NextResponse.json({ error: 'Could not start scan' }, { status: 500 })
+  if (insertError || !scan) {
+    console.error('[v0] Could not create scan row', insertError?.message ?? 'No scan row returned')
+    return NextResponse.json({ error: 'Could not start scan. The Supabase scans table rejected the request; verify the deployed database schema, service-role key, and permissions.' }, { status: 503 })
+  }
   try {
     let findings: Awaited<ReturnType<typeof findingsFromDnsChecks>> = []
     let mailProvider = null
@@ -84,7 +93,7 @@ export async function POST(request: NextRequest) {
     const emailNotDeliverable = error instanceof Error && (error.message === 'EMAIL_DOMAIN_NOT_DELIVERABLE' || error.message === 'EMAIL_NOT_DELIVERABLE')
     const emailProviderIssue = error instanceof Error && (error.message === 'EMAIL_PROVIDER_NOT_CONFIGURED' || error.message === 'EMAIL_PROVIDER_UNAUTHORIZED')
     const providerUnavailable = error instanceof Error && (error.message === 'PROVIDER_NOT_CONFIGURED' || error.message.startsWith('PROVIDER_'))
-    const aiUnavailable = error instanceof Error && error.message === 'PROVIDER_AI_UNAVAILABLE'
+    const aiUnavailable = error instanceof Error && error.message.startsWith('PROVIDER_AI_UNAVAILABLE')
     const errorCode = notFound ? 'DOMAIN_NOT_FOUND' : emailNotDeliverable ? 'EMAIL_DOMAIN_NOT_DELIVERABLE' : emailProviderIssue ? error.message : aiUnavailable ? 'PROVIDER_AI_UNAVAILABLE' : providerUnavailable ? 'PROVIDER_UNAVAILABLE' : 'SCAN_EXECUTION_FAILED'
     await supabase.from('scans').update({ status: 'failed', error_code: errorCode }).eq('id', scan.id)
     const message = notFound
