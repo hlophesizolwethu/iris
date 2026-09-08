@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
   if (!limit.allowed) return NextResponse.json({ error: 'Too many scan requests. Please try again shortly.' }, { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } })
   const body = await request.json().catch(() => null)
   const target = normalizeTarget(body?.target ?? { type: 'domain', value: body?.domain })
+  const requestedTimezone = typeof body?.timezone === 'string' && body.timezone.length <= 80 ? body.timezone : 'Africa/Maputo'
+  const timezone = (() => { try { new Intl.DateTimeFormat('en', { timeZone: requestedTimezone }).format(); return requestedTimezone } catch { return 'Africa/Maputo' } })()
   if (!target) return NextResponse.json({ error: 'Enter a valid email address, domain, international phone number, or supported social profile. No scan or score was created.' }, { status: 400 })
   let user: { id: string } | null = null
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
   try {
     let findings: Awaited<ReturnType<typeof findingsFromDnsChecks>> = []
     let mailProvider = null
-    let evidence: Record<string, unknown> = {}
+    let evidence: Record<string, unknown> = { timezone, timezoneLabel: timezone === 'Africa/Maputo' ? 'CAT' : timezone }
     if (target.type === 'domain') {
       const dnsFindings = await runDnsChecks(target.value)
       findings = findingsFromDnsChecks(scan.id, dnsFindings)
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
     } else {
       const providerResult = await runProviderCheck(target, scan.id)
       findings = providerResult.findings.map((finding) => ({ ...finding, scan_id: scan.id })) as Awaited<ReturnType<typeof findingsFromDnsChecks>>
-      evidence = { provider: providerResult.provider, ...providerResult.evidence }
+      evidence = { timezone, timezoneLabel: timezone === 'Africa/Maputo' ? 'CAT' : timezone, provider: providerResult.provider, ...providerResult.evidence }
       mailProvider = null
     }
     if (findings.length) {

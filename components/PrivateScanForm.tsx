@@ -25,7 +25,7 @@ export default function PrivateScanForm() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(null); setSubmitting(true)
     try {
-      const response = await fetch('/api/scan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ accessLevel: 'extended', target: { type, value, ...(type === 'social_profile' ? { platform } : {}) } }) })
+      const response = await fetch('/api/scan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ accessLevel: 'extended', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Maputo', target: { type, value, ...(type === 'social_profile' ? { platform } : {}) } }) })
       const data = await response.json()
       if (!response.ok) { setError(data.error ?? 'We could not start that scan.'); return }
       router.push(`/scan/${data.scanId}`)

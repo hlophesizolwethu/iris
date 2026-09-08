@@ -33,7 +33,7 @@ export default function HomePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setError(null); setSubmitting(true)
     try {
-      const res = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: { type, value, ...(type === 'social_profile' ? { platform } : {}) } }) })
+      const res = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Maputo', target: { type, value, ...(type === 'social_profile' ? { platform } : {}) } }) })
       const data = await res.json(); if (!res.ok) { setError(data.error ?? 'Enter a valid email address, domain, international phone number, or supported social profile. No scan or score was created.'); return }; router.push(`/scan/${data.scanId}`)
     } catch { setError('Could not reach the scan service. Please try again.') } finally { setSubmitting(false) }
   }
