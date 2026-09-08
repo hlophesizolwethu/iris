@@ -76,6 +76,13 @@ export async function runAiSocialCheck(target: ScanTarget, scanId: string): Prom
     throw new Error(`PROVIDER_AI_UNAVAILABLE:${lastError instanceof Error ? lastError.message : 'unknown'}`)
   }
 
+  const searchedAt = new Date().toISOString()
+  const canonicalTarget = target.value
+  const profile = result.profile.found || result.profile.displayName || result.profile.bio || result.profile.activity || result.profile.audience
+    ? result.profile
+    : { ...result.profile, found: false, confidence: 0 }
+  const limitations = result.limitations.length ? result.limitations : ['Only publicly accessible web evidence was reviewed. Facebook may restrict profile content to signed-in users or privacy-approved audiences.']
+  const sources = result.sources.length ? result.sources : [{ url: canonicalTarget, observation: 'The submitted public profile URL was evaluated, but no additional publicly verifiable profile details were returned.', observedAt: searchedAt, confidence: 0.35 }]
   const findings = result.findings.filter((item) => item.confidence >= 0.6).map((item) => findingFor(scanId, item))
   return {
     provider: `ai_gateway_${usedModel.replace('/', '_')}`,
@@ -83,12 +90,12 @@ export async function runAiSocialCheck(target: ScanTarget, scanId: string): Prom
     evidence: {
       mode: 'public_web_search',
       platform: target.platform,
-      target: target.value,
-      profile: result.profile,
+      target: canonicalTarget,
+      profile,
       findings: result.findings,
-      sources: result.sources,
-      limitations: result.limitations,
-      searchedAt: new Date().toISOString(),
+      sources,
+      limitations,
+      searchedAt,
     },
   }
 }

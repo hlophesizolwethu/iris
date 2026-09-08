@@ -12,7 +12,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const supabase = createSupabaseServiceRoleClient()
   const { data: scan, error } = await supabase
     .from('scans')
-    .select('id, owner_id, domain, target_type, target_platform, access_level, status, risk_score, mail_provider, remediation_provenance, remediation_guide, created_at, completed_at, error_code')
+    .select('id, owner_id, domain, target_type, target_platform, access_level, status, risk_score, mail_provider, provider_evidence, remediation_provenance, remediation_guide, created_at, completed_at, error_code')
     .eq('id', id)
     .single()
 
